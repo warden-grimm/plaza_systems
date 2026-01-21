@@ -1,0 +1,440 @@
+{
+  "project": {
+    "name": "Celebration Plaza Digital Activation Concept",
+    "site": "Celebration Plaza outside Miami Freedom Park",
+    "primaryTenant": "Inter Miami CF",
+    "version": "0.1",
+    "intent": {
+      "summary": "A programmable civic forecourt that operates daily as a social gathering space and scales into a high-impact event venue on matchdays and special events.",
+      "designPriorities": [
+        "Flexibility across daily and event use",
+        "Zoned control (audio, lighting, media)",
+        "Future scalability (capacity, tech upgrades)",
+        "Operational clarity (modes, overrides, safety)"
+      ]
+    }
+  },
+  "sections": [
+    {
+      "id": 1,
+      "title": "Vision and Intent",
+      "paragraph": "Celebration Plaza is conceived as a programmable, high-energy civic forecourt that operates daily as a social gathering space and transforms seamlessly into a high-impact event venue on matchdays and special events. The digital ecosystem prioritizes flexibility, zoned control, and future scalability—supporting everything from ambient daily use to broadcast-scale spectacles."
+    },
+    {
+      "id": 2,
+      "title": "Platform Ecosystem Overview",
+      "paragraph": "The platform ecosystem is anchored by Heron Wings, the radial overhead canopy with integrated linear RGBW LED lighting. Brand Pavilion functions as the performance and energy core with an overhead direct-view LED wrap. Three large direct-view LED panels on multi-axis CNC arms act as kinetic visual icons. Pole-mounted RGB lighting defines perimeter rhythm and is homerun to stadium lighting controls. Speakers can be installed around the canopy and Brand Pavilion, supported by a plaza production panel for live performances.",
+      "platforms": [
+        {
+          "id": "canopy",
+          "name": "Heron Wings",
+          "type": "overhead_structure",
+          "primaryRoles": ["spatial_anchor", "ambient_light_layer", "event_atmosphere", "wayfinding"],
+          "systems": {
+            "lighting": {
+              "type": "linear_led",
+              "control": ["DMX", "sACN/Art-Net"],
+              "capabilities": ["RGBW", "pixel_addressable_optional", "dimming_curves", "timecode_sync_optional"]
+            },
+            "audio": {
+              "type": "distributed_speakers",
+              "mounting": ["canopy_structure", "integrated_brackets"],
+              "capabilities": ["zoned_playback", "directional_aiming", "delay_alignment"]
+            },
+            "rigging": {
+              "type": "rated_points",
+              "capabilities": ["temporary_luminaires", "banners", "specialty_fx", "show_elements"]
+            }
+          }
+        },
+        {
+          "id": "dj_pavilion",
+          "name": "Brand Pavilion",
+          "type": "performance_node",
+          "primaryRoles": ["performance_core", "dj_sets", "live_acts", "brand_takeovers"],
+          "systems": {
+            "video": {
+              "type": "direct_view_led_wrap",
+              "control": ["media_server", "processor", "genlock_optional"],
+              "capabilities": ["high_brightness", "live_feed", "content_playout", "show_sync"]
+            },
+            "audio": {
+              "type": "high_output_system",
+              "components": ["full_range", "subwoofers", "front_fill_optional", "delays_optional"],
+              "capabilities": ["concert_mode", "dj_mode", "speech_mode", "broadcast_integration_optional"]
+            },
+            "lighting": {
+              "type": "integrated_truss_and_positions",
+              "control": ["DMX", "sACN/Art-Net"],
+              "capabilities": ["key_light", "effects", "audience_wash", "sync_with_canopy"]
+            }
+          }
+        },
+        {
+          "id": "cnc_panels",
+          "name": "CNC-Mounted DV LED Panels",
+          "type": "kinetic_media",
+          "count": 3,
+          "primaryRoles": ["visual_icon", "crowd_address", "backdrop", "sculptural_media"],
+          "systems": {
+            "video": {
+              "type": "direct_view_led",
+              "capabilities": ["content_playout", "orientation_presets", "multi_destination_routing"]
+            },
+            "motion": {
+              "type": "multi_axis_cnc_arm",
+              "capabilities": ["preset_positions", "motion_safe_profiles", "wind_lockout", "maintenance_mode"],
+              "safety": ["E-stop", "interlocks", "restricted_zones", "show_control_integration"]
+            }
+          }
+        },
+        {
+          "id": "pole_rgb",
+          "name": "Pole-Mounted RGB Lighting",
+          "type": "architectural_lighting",
+          "primaryRoles": ["perimeter_definition", "vertical_rhythm", "team_color", "seasonal_palettes"],
+          "systems": {
+            "lighting": {
+              "type": "rgb_luminaires",
+              "control": ["stadium_lighting_controls", "DMX_gateway_optional"],
+              "notes": "All pole-mounted lighting is RGB and homerun to stadium lighting controls."
+            }
+          }
+        },
+        {
+          "id": "event_stage",
+          "name": "Event Stage",
+          "type": "performance_stage",
+          "locationNote": "Sits at the end of the plaza, facing the area under Heron Wings.",
+          "primaryRoles": [
+            "primary_live_event_focus",
+            "concert_and_program_stage",
+            "ceremonies_and_announcements",
+            "broadcast_ready_performance_point",
+            "show_control_driver"
+          ],
+          "systems": {
+            "lighting": {
+              "type": "stage_lighting_package",
+              "control": ["DMX", "sACN/Art-Net"],
+              "capabilities": [
+                "key_light_front_wash",
+                "backlight_and_silhouette",
+                "beam_and_effects",
+                "audience_wash_optional",
+                "timecode_sync_optional",
+                "preset_recall"
+              ],
+              "notes": "Provide both permanent positions for lightweight fixtures and tie-in points for touring/rental rigs."
+            },
+            "audio": {
+              "type": "event_stage_pa",
+              "components": [
+                "LCR_or_stereo_mains",
+                "subwoofers",
+                "front_fills",
+                "stage_monitors_or_IEM_support",
+                "delay_feeds_to_plaza_zones"
+              ],
+              "capabilities": [
+                "concert_mode_high_spl",
+                "speech_mode_high_intelligibility",
+                "broadcast_feed_support_optional",
+                "zoned_reinforcement_under_canopy"
+              ],
+              "notes": "Stage mix should be routable into plaza DSP to align delays under Heron Wings and minimize spill to perimeter zones."
+            },
+            "rigging": {
+              "type": "rated_stage_rigging_points",
+              "capabilities": [
+                "overhead_truss_or_goalpost_support",
+                "touring_audio_pick_points",
+                "scenic_and_banner_support",
+                "specialty_fx_points"
+              ],
+              "notes": "Include engineered points for touring productions and quick reconfiguration."
+            },
+            "production": {
+              "type": "stage_io_and_control",
+              "capabilities": [
+                "patch_points_audio_lighting_data",
+                "camera_and_broadcast_positions_optional",
+                "comms_intercom_optional",
+                "power_distribution_tie_in"
+              ]
+            }
+          },
+          "controlRelationships": {
+            "drivesPlatforms": ["canopy", "cnc_panels", "pole_rgb", "dj_pavilion"],
+            "coordinationNotes": [
+              "When an event runs on Event Stage, Heron Wings acts as the responsive audience canopy layer, shifting to stage-led looks and cues.",
+              "Stage cues may trigger CNC panel orientation presets (e.g., face audience, flank stage, create backdrop).",
+              "Pole RGB lighting may shift to event palette, wayfinding, or audience energy moments as part of stage show control."
+            ],
+            "recommendedControl": [
+              "Unified show control triggers (OSC/MIDI/HTTP) from stage production to lighting/video/DSP",
+              "Preset libraries for stage-led looks across Heron Wings, CNC panels, and pole RGB",
+              "Safety and motion interlocks remain authoritative for CNC arms"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Audio Strategy – Multi-Zone, Multi-Mode System",
+      "paragraph": "The audio strategy is a distributed, zoned system that supports multiple simultaneous activities while maintaining acoustic clarity and comfort. The canopy zone provides conversation-friendly ambient sound, the DJ Pavilion delivers high-output performance audio, perimeter zones support circulation and messaging, and transition zones provide acoustic buffers. Centralized DSP and show control enable seamless mode changes across daily use, gameday, concerts, and special events.",
+      "audioPrinciples": [
+        "Control spill and bleed with directional aiming and zoning",
+        "Scale SPL by operational mode",
+        "Centralized DSP with recallable presets",
+        "Delay-align distributed systems for intelligibility",
+        "Emergency override and life-safety priority routing"
+      ],
+      "audioZones": [
+        {
+          "id": "A1_canopy_social",
+          "name": "Canopy Social Zone",
+          "role": "conversation_friendly_ambient",
+          "typicalContent": ["ambient_music", "low_intensity_sound_design", "subtle_reactive_audio"],
+          "targetSPL": { "daily": "low", "event": "medium" }
+        },
+        {
+          "id": "A2_dj_performance",
+          "name": "DJ Pavilion Performance Zone",
+          "role": "high_output_primary_program",
+          "typicalContent": ["dj_sets", "live_music", "performance_playback", "mc_speech"],
+          "targetSPL": { "daily": "off_or_low", "event": "high" }
+        },
+        {
+          "id": "A3_perimeter_circulation",
+          "name": "Perimeter / Circulation Zone",
+          "role": "continuity_and_messaging",
+          "typicalContent": ["announcements", "wayfinding_cues", "low_level_music"],
+          "targetSPL": { "daily": "low", "event": "medium" }
+        },
+        {
+          "id": "A4_transition_buffers",
+          "name": "Quiet / Transition Zones",
+          "role": "acoustic_buffer",
+          "typicalContent": ["minimal_ambient", "none"],
+          "targetSPL": { "daily": "very_low", "event": "low" }
+        }
+      ],
+      "mixingAndRouting": {
+        "controlModel": "central_dsp_with_zone_matrices",
+        "inputs": ["house_music", "dj_mixer", "live_console", "playback_server", "broadcast_feed_optional"],
+        "outputs": ["A1_canopy_social", "A2_dj_performance", "A3_perimeter_circulation", "A4_transition_buffers"],
+        "features": ["preset_recall", "timecode_optional", "ducking_for_announcements", "priority_override"]
+      }
+    },
+    {
+      "id": 4,
+      "title": "Projection and Ground Activation Strategy",
+      "paragraph": "Ground projection mapping extends the digital layer onto the plaza surface using high-output, short-throw projectors mounted to architectural structures. Content includes motion graphics, team motifs, interactive patterns, and seasonal overlays that can respond to crowd movement and density. This layer reinforces arrival energy, nighttime ambiance, and event identity without adding permanent physical infrastructure.",
+      "projection": {
+        "projectionSurfaces": [
+          {
+            "id": "P1_plaza_field",
+            "name": "Primary Plaza Ground Plane",
+            "type": "paving_surface",
+            "notes": "Prioritize higher-reflectance paving zones or treated surface areas for projection readability."
+          }
+        ],
+        "projectorMountZones": [
+          {
+            "id": "PM1_canopy_mounts",
+            "name": "Canopy-Mounted Projector Positions",
+            "type": "overhead_mount",
+            "requirements": ["vibration_isolation", "weather_housings", "service_access"]
+          },
+          {
+            "id": "PM2_building_edges",
+            "name": "Adjacent Building / Structure Mounts",
+            "type": "architectural_mount",
+            "requirements": ["line_of_sight", "secure_enclosures", "aiming_adjustability"]
+          }
+        ],
+        "contentTypes": ["motion_graphics", "team_branding", "interactive_patterns", "seasonal_overlays"],
+        "interactionSignalsOptional": ["crowd_density", "movement_vectors", "audio_reactivity", "time_of_day"],
+        "control": {
+          "mediaServer": "projection_mapping_server",
+          "sync": ["timecode_optional", "show_control_triggers"],
+          "calibration": ["warp_blend", "keystone", "alignment_markers"]
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Operational Modes",
+      "paragraph": "The plaza supports multiple operational modes including Inter Miami CF matchdays, concerts, brand takeovers, seasonal activations, and daily ambient use. Pre-game modes build energy and attract crowds, in-game modes reduce intensity to support circulation and avoid conflicts, and post-game modes enable celebratory programming. Non-matchday events leverage the DJ Pavilion and CNC panels as primary performance elements, with canopy and perimeter lighting acting as atmospheric support.",
+      "modes": [
+        {
+          "id": "M1_daily_ambient",
+          "name": "Daily Ambient",
+          "intent": "Hospitality-friendly baseline with low energy use and subtle motion.",
+          "lighting": ["canopy_low_motion", "pole_rgb_soft_palette"],
+          "audio": ["A1_canopy_social_low", "A3_perimeter_low"],
+          "video": ["dj_wrap_idle_art", "cnc_panels_sculptural_idle"],
+          "projection": ["optional_night_texture"]
+        },
+        {
+          "id": "M2_gameday_pre_game",
+          "name": "Gameday – Pre-Game Build",
+          "intent": "Escalating energy and gathering; team-forward content and cues.",
+          "lighting": ["canopy_team_color_pulses", "pole_rgb_team_palette"],
+          "audio": ["A2_dj_performance_medium_high", "A1_canopy_social_medium", "A3_perimeter_medium"],
+          "video": ["dj_wrap_hype_content", "cnc_panels_inward_crowd_address"],
+          "projection": ["arrival_graphics", "interactive_hype_patterns_optional"]
+        },
+        {
+          "id": "M3_gameday_in_game",
+          "name": "Gameday – During Match",
+          "intent": "Reduced intensity; support circulation and minimize broadcast conflicts.",
+          "lighting": ["canopy_low_intensity", "pole_rgb_wayfinding_bias"],
+          "audio": ["A1_canopy_social_low", "A3_perimeter_low_announcements"],
+          "video": ["dj_wrap_low_key", "cnc_panels_wayfinding_or_idle"],
+          "projection": ["off_or_minimal"]
+        },
+        {
+          "id": "M4_gameday_post_game",
+          "name": "Gameday – Post-Game Celebration",
+          "intent": "Celebrate, retain guests, drive post-match dwell and spending.",
+          "lighting": ["canopy_high_energy_chase", "pole_rgb_celebration_palette"],
+          "audio": ["A2_dj_performance_high", "A1_canopy_social_medium_high", "A3_perimeter_medium"],
+          "video": ["dj_wrap_celebration_loops", "cnc_panels_dynamic_presets"],
+          "projection": ["victory_patterns", "crowd_reactive_optional"]
+        },
+        {
+          "id": "M5_concert_mode",
+          "name": "Concert Mode",
+          "intent": "Event Stage-led full performance system with synchronized plaza atmosphere.",
+          "lighting": ["show_lighting_from_pavilion", "canopy_supporting_looks", "pole_rgb_supporting_looks"],
+          "audio": ["A2_dj_performance_concert_high", "A1_canopy_social_support", "A3_perimeter_support_delays"],
+          "video": ["dj_wrap_live_imag_or_visuals", "cnc_panels_as_backdrop_or_side_screens"],
+          "projection": ["optional_thematic"]
+        },
+        {
+          "id": "M6_brand_takeover",
+          "name": "Brand Takeover",
+          "intent": "Temporarily re-skin the plaza with brand palettes and content layers.",
+          "lighting": ["canopy_brand_palette", "pole_rgb_brand_palette"],
+          "audio": ["zoned_brand_audio_optional", "speech_priority_optional"],
+          "video": ["dj_wrap_brand_content", "cnc_panels_brand_content"],
+          "projection": ["brand_ground_overlay_optional"]
+        },
+        {
+          "id": "M7_seasonal_activation",
+          "name": "Seasonal Activation",
+          "intent": "Holiday and seasonal programming with repeatable show packs.",
+          "lighting": ["seasonal_palettes", "time_based_sequences"],
+          "audio": ["seasonal_playlists", "family_friendly_spl"],
+          "video": ["seasonal_visuals"],
+          "projection": ["seasonal_overlays"]
+        }
+      ],
+      "modeConstraints": [
+        "Respect neighborhood noise limits and curfews where applicable",
+        "Provide emergency override priority across all modes",
+        "Provide motion lockout presets for CNC arms based on wind/safety thresholds"
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Specialty Lighting and Audio Requirements",
+      "paragraph": "Specialty lighting includes pixel-addressable LED systems across canopy, panels, and poles with full DMX and Art-Net distribution and automatic brightness management. Audio systems are weather-rated, networked, and scalable, supporting live mixing, broadcast integration, and emergency override. All systems support synchronized show control across lighting, audio, and media playback.",
+      "specialtyNeeds": {
+        "lighting": [
+          "DMX/sACN/Art-Net distribution with redundancy",
+          "Automatic dimming curves for day/night conditions",
+          "Pixel control where required for dynamic canopy effects",
+          "Stadium lighting integration for pole RGB (homerun)"
+        ],
+        "audio": [
+          "Weather-rated enclosures and corrosion-resistant hardware",
+          "Networked DSP with zoning, delay, and EQ per zone",
+          "Support for live console tie-in at production panel",
+          "Emergency override / paging integration"
+        ],
+        "showControl": [
+          "Unified triggers for lighting, video, motion, and projection",
+          "Preset library and schedule-based automation",
+          "Timecode / sync options for performances"
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "title": "Infrastructure and Future-Proofing Requirements",
+      "paragraph": "Core infrastructure includes dedicated clean power, event-scale capacity, a redundant fiber backbone, and centralized production control within the plaza. Integrated rigging points, spare conduits, and modular mounting systems enable future expansion. A software-agnostic show control framework ensures the plaza can evolve with new technologies and programming demands.",
+      "infrastructure": {
+        "power": {
+          "cleanPower": ["dedicated_AV_panels", "isolated_ground_where_required"],
+          "eventPower": ["company_switch_or_camlock_tie_ins", "spare_capacity_for_temporary_rental_gear"],
+          "notes": "Separate AV power from high-noise loads where possible."
+        },
+        "dataAndNetworks": {
+          "backbone": ["redundant_fiber_rings_or_diverse_paths"],
+          "edge": ["network_switches_at_each_node", "VLANs_for_AV_control_vs_operations"],
+          "timing": ["PTP_or_genlock_optional_for_video_sync"]
+        },
+        "controlAndOperations": {
+          "productionPanel": {
+            "id": "CP1_plaza_production_panel",
+            "capabilities": ["audio_mixing_tie_in", "lighting_network_access", "video_playback_access", "show_control_terminal"],
+            "locations": ["central_plaza_or_event_edge_accessible"],
+            "requirements": ["weather_protected_enclosure", "secure_access", "service_clearance"]
+          },
+          "overrides": ["emergency_override_priority", "manual_blackout", "all_stop_for_motion"]
+        },
+        "riggingAndMounting": {
+          "ratedPoints": ["canopy_points", "pavilion_truss_positions"],
+          "futureMounts": ["modular_brackets_for_new_speakers", "future_projectors", "temporary_signage"]
+        },
+        "pathwaysAndSpareCapacity": {
+          "conduits": ["spare_conduits_to_key_nodes", "pull_strings", "accessible_junctions"],
+          "enclosures": ["spare_rack_units", "blanked_patch_panels", "extra_breaker_spaces"]
+        }
+      }
+    }
+  ],
+  "mapEntities": {
+    "zones": [
+      { "id": "Z_canopy", "name": "Canopy Zone", "type": "lighting_audio_zone", "links": ["A1_canopy_social"] },
+      { "id": "Z_dj", "name": "Brand Pavilion Zone", "type": "lighting_audio_video_zone", "links": ["A2_dj_performance"] },
+      { "id": "Z_perimeter", "name": "Perimeter Zone", "type": "lighting_audio_zone", "links": ["A3_perimeter_circulation"] },
+      { "id": "Z_transition", "name": "Transition Buffer Zones", "type": "audio_zone", "links": ["A4_transition_buffers"] },
+      { "id": "Z_projection", "name": "Projection Ground Plane", "type": "projection_zone", "links": ["P1_plaza_field"] }
+    ],
+    "nodes": [
+      { "id": "N1_canopy_hub", "name": "Canopy Hub", "type": "system_node", "platformRef": "canopy" },
+      { "id": "N2_dj_pavilion", "name": "Brand Pavilion", "type": "system_node", "platformRef": "dj_pavilion" },
+      { "id": "N3_cnc_panel_1", "name": "CNC Panel 1", "type": "system_node", "platformRef": "cnc_panels" },
+      { "id": "N4_cnc_panel_2", "name": "CNC Panel 2", "type": "system_node", "platformRef": "cnc_panels" },
+      { "id": "N5_cnc_panel_3", "name": "CNC Panel 3", "type": "system_node", "platformRef": "cnc_panels" },
+      { "id": "N6_control_panel", "name": "Plaza Production Panel", "type": "control_node", "ref": "CP1_plaza_production_panel" }
+    ],
+    "layers": [
+      { "id": "L_audio", "name": "Audio Layer", "controls": ["DSP", "zone_matrices", "presets"], "relatedZones": ["A1_canopy_social", "A2_dj_performance", "A3_perimeter_circulation", "A4_transition_buffers"] },
+      { "id": "L_lighting", "name": "Lighting Layer", "controls": ["DMX", "sACN/Art-Net", "stadium_controls_for_poles"], "relatedPlatforms": ["canopy", "dj_pavilion", "pole_rgb"] },
+      { "id": "L_video", "name": "Video Layer", "controls": ["media_server", "processors"], "relatedPlatforms": ["dj_pavilion", "cnc_panels"] },
+      { "id": "L_motion", "name": "Motion Layer", "controls": ["CNC_controller", "safety_interlocks", "presets"], "relatedPlatforms": ["cnc_panels"] },
+      { "id": "L_projection", "name": "Projection Layer", "controls": ["projection_mapping_server", "warp_blend"], "relatedZones": ["P1_plaza_field"] }
+    ]
+  },
+  "codexImplementationHints": {
+    "ui": {
+      "mapViews": ["base_plan_view", "zones_view", "systems_view", "modes_view"],
+      "interactions": [
+        "toggle layers (audio/lighting/video/motion/projection)",
+        "select a mode to preview zone behaviors",
+        "click a zone to show requirements + typical content",
+        "click a node to show infrastructure and control dependencies"
+      ]
+    },
+    "dataAssumptions": [
+      "Geometry (polygons/points) can be added later once a base plan is available.",
+      "Zones and nodes currently represent logical groupings; spatial coordinates are intentionally omitted."
+    ]
+  }
+}
