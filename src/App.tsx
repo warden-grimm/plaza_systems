@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
+import { HeronWingsViewer, type RhinoLayer, type LightEffect, type LightSettings, DEFAULT_LIGHT_SETTINGS } from './components/HeronWingsViewer';
+import { HeronWingsSidebar } from './components/HeronWingsSidebar';
+import { HeronLightPanel } from './components/HeronLightPanel';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -327,11 +330,12 @@ interface PlatformListProps {
   conceptData: ConceptData | null;
   selectedEntity: { type: string; id: string } | null;
   onSelectEntity: (type: string, id: string) => void;
+  placements: IconPlacement[];
   selectedModeId: string;
   onSelectMode: (modeId: string) => void;
 }
 
-function PlatformList({ conceptData, selectedEntity, onSelectEntity, selectedModeId, onSelectMode }: PlatformListProps) {
+function PlatformList({ conceptData, selectedEntity, onSelectEntity, placements: _placements, selectedModeId, onSelectMode }: PlatformListProps) {
   if (!conceptData) return <div className="sidebar loading">Loading...</div>;
 
   const allModes = conceptData.sections.flatMap(s => s.modes || []);
@@ -1139,6 +1143,14 @@ function App() {
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
   const [isAuthed, setIsAuthed] = useState(false);
+  const [activeTab, setActiveTab] = useState<'plaza-modes' | 'heron-wings'>('plaza-modes');
+
+  // Heron Wings state
+  const [heronLayers, setHeronLayers] = useState<RhinoLayer[]>([]);
+  const [heronLoading, setHeronLoading] = useState(true);
+  const [lightEffect, setLightEffect] = useState<LightEffect>('off');
+  const [lightSettings, setLightSettings] = useState<LightSettings>(DEFAULT_LIGHT_SETTINGS);
+  const resetCameraRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const stored = sessionStorage.getItem('plaza-auth');
@@ -1155,10 +1167,18 @@ function App() {
       .catch(err => console.error('Failed to load concept data:', err));
   }, []);
 
-  // Track whether initial load has completed
-  const [hasLoadedPlacements, setHasLoadedPlacements] = useState(false);
+  // Clear saved placements once to remove legacy icons.
+  useEffect(() => {
+    const clearKey = 'plaza-placements-cleared-v1';
+    if (!localStorage.getItem(clearKey)) {
+      localStorage.removeItem('plaza-placements');
+      setPlacements([]);
+      setUndoStack([]);
+      localStorage.setItem(clearKey, 'true');
+    }
+  }, []);
 
-  // Load placements from localStorage on mount
+  // Load placements from localStorage
   useEffect(() => {
     const saved = localStorage.getItem('plaza-placements');
     if (saved) {
@@ -1169,20 +1189,17 @@ function App() {
         console.error('Failed to load placements:', err);
       }
     }
-    setHasLoadedPlacements(true);
   }, []);
 
-  // Save placements to localStorage (only after initial load)
+  // Save placements to localStorage
   useEffect(() => {
-    if (!hasLoadedPlacements) return;
-
     if (placements.length > 0) {
       const data: PlacementsData = { placements };
       localStorage.setItem('plaza-placements', JSON.stringify(data));
     } else {
       localStorage.removeItem('plaza-placements');
     }
-  }, [placements, hasLoadedPlacements]);
+  }, [placements]);
 
   // URL state management
   useEffect(() => {
@@ -1255,6 +1272,46 @@ function App() {
     });
   };
 
+  // Heron Wings handlers
+  const handleHeronLayersLoaded = useCallback((layers: RhinoLayer[]) => {
+    const defaultHiddenLayers = new Set(['emitters', 'base lights']);
+    setHeronLayers(layers.map((layer) => ({
+      ...layer,
+      visible: !defaultHiddenLayers.has(layer.name.trim().toLowerCase())
+    })));
+    setHeronLoading(false);
+  }, []);
+
+  const handleToggleHeronLayer = useCallback((index: number) => {
+    setHeronLayers(prev => prev.map(layer =>
+      layer.index === index ? { ...layer, visible: !layer.visible } : layer
+    ));
+  }, []);
+
+  const handleShowAllHeronLayers = useCallback(() => {
+    setHeronLayers(prev => prev.map(layer => ({ ...layer, visible: true })));
+  }, []);
+
+  const handleHideAllHeronLayers = useCallback(() => {
+    setHeronLayers(prev => prev.map(layer => ({ ...layer, visible: false })));
+  }, []);
+
+  const handleResetHeronCamera = useCallback(() => {
+    resetCameraRef.current?.();
+  }, []);
+
+  const registerResetCamera = useCallback((fn: () => void) => {
+    resetCameraRef.current = fn;
+  }, []);
+
+  const handleLightEffectChange = useCallback((effect: LightEffect) => {
+    setLightEffect(effect);
+  }, []);
+
+  const handleLightSettingsChange = useCallback((settings: LightSettings) => {
+    setLightSettings(settings);
+  }, []);
+
   const handleLogin = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (passwordInput === 'PlazaActivation') {
@@ -1295,57 +1352,105 @@ function App() {
       <header className="app-header">
         <h1>{conceptData?.project.name || 'Plaza Systems Map'}</h1>
       </header>
+      
+      <nav className="app-nav">
+        <button 
+          className={`nav-tab ${activeTab === 'plaza-modes' ? 'active' : ''}`}
+          onClick={() => setActiveTab('plaza-modes')}
+        >
+          Plaza Modes
+        </button>
+        <button 
+          className={`nav-tab ${activeTab === 'heron-wings' ? 'active' : ''}`}
+          onClick={() => setActiveTab('heron-wings')}
+        >
+          Heron Wings
+        </button>
+      </nav>
 
       <div className="app-body">
-        <PlatformList
-          conceptData={conceptData}
-          selectedEntity={selectedEntity}
-          onSelectEntity={handleSelectEntity}
-          selectedModeId={selectedModeId}
-          onSelectMode={setSelectedModeId}
-        />
-
-        <div className="center-column">
-          <div className="center-header">
-            <PlacementToolbar
+        {activeTab === 'plaza-modes' ? (
+          <>
+            <PlatformList
               conceptData={conceptData}
-              placementMode={placementMode}
-              onSetPlacementMode={handleSetPlacementMode}
-              onUndo={handleUndo}
-              canUndo={undoStack.length > 0}
-              removeMode={removeMode}
-              onSetRemoveMode={setRemoveMode}
+              selectedEntity={selectedEntity}
+              onSelectEntity={handleSelectEntity}
+              placements={placements}
+              selectedModeId={selectedModeId}
+              onSelectMode={setSelectedModeId}
             />
-            <LayerToggles
+
+            <div className="center-column">
+              <div className="center-header">
+                <PlacementToolbar
+                  conceptData={conceptData}
+                  placementMode={placementMode}
+                  onSetPlacementMode={handleSetPlacementMode}
+                  onUndo={handleUndo}
+                  canUndo={undoStack.length > 0}
+                  removeMode={removeMode}
+                  onSetRemoveMode={setRemoveMode}
+                />
+                <LayerToggles
+                  conceptData={conceptData}
+                  activeLayers={activeLayers}
+                  onToggleLayer={handleToggleLayer}
+                />
+              </div>
+
+              <MapCanvas
+                conceptData={conceptData}
+                placements={placements}
+                selectedEntity={selectedEntity}
+                onSelectEntity={handleSelectEntity}
+                onUpdatePlacement={handleUpdatePlacement}
+                onAddPlacement={handleAddPlacement}
+                onDeletePlacement={handleDeletePlacement}
+                placementMode={placementMode}
+                activeLayers={activeLayers}
+                removeMode={removeMode}
+                selectedModeId={selectedModeId}
+              />
+
+              <Legend />
+            </div>
+
+            <ContextDrawer
               conceptData={conceptData}
-              activeLayers={activeLayers}
-              onToggleLayer={handleToggleLayer}
+              selectedEntity={selectedEntity}
+              onClose={handleCloseDrawer}
+              selectedModeId={selectedModeId}
             />
-          </div>
+          </>
+        ) : (
+          <>
+            <HeronWingsSidebar
+              layers={heronLayers}
+              onToggleLayer={handleToggleHeronLayer}
+              onShowAll={handleShowAllHeronLayers}
+              onHideAll={handleHideAllHeronLayers}
+              onResetCamera={handleResetHeronCamera}
+              isLoading={heronLoading}
+              lightEffect={lightEffect}
+              onLightEffectChange={handleLightEffectChange}
+            />
 
-          <MapCanvas
-            conceptData={conceptData}
-            placements={placements}
-            selectedEntity={selectedEntity}
-            onSelectEntity={handleSelectEntity}
-            onUpdatePlacement={handleUpdatePlacement}
-            onAddPlacement={handleAddPlacement}
-            onDeletePlacement={handleDeletePlacement}
-            placementMode={placementMode}
-            activeLayers={activeLayers}
-            removeMode={removeMode}
-            selectedModeId={selectedModeId}
-          />
+            <HeronWingsViewer
+              layers={heronLayers}
+              onLayersLoaded={handleHeronLayersLoaded}
+              onResetCamera={handleResetHeronCamera}
+              registerResetCamera={registerResetCamera}
+              lightEffect={lightEffect}
+              lightSettings={lightSettings}
+            />
 
-          <Legend />
-        </div>
-
-        <ContextDrawer
-          conceptData={conceptData}
-          selectedEntity={selectedEntity}
-          onClose={handleCloseDrawer}
-          selectedModeId={selectedModeId}
-        />
+            <HeronLightPanel
+              settings={lightSettings}
+              onSettingsChange={handleLightSettingsChange}
+              isLoading={heronLoading}
+            />
+          </>
+        )}
       </div>
     </div>
   );

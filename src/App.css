@@ -202,6 +202,44 @@ body {
   background: var(--color-primary-hover);
 }
 
+/* ============================================================================
+   NAVIGATION TABS
+   ============================================================================ */
+
+.app-nav {
+  display: flex;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  padding: 0;
+  margin: 0;
+  justify-content: flex-start;
+}
+
+.nav-tab {
+  max-width: 200px;
+  padding: 12px 24px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+.nav-tab:hover {
+  color: var(--color-text);
+  background: var(--color-surface-elevated);
+}
+
+.nav-tab.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
 .app-body {
   display: flex;
   flex: 1;
@@ -1063,4 +1101,483 @@ input:focus-visible {
 .platform-item:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: -2px;
+}
+
+/* ============================================================================
+   HERON WINGS VIEWER
+   ============================================================================ */
+
+.heron-viewer-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+.heron-viewer-container canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Heron Wings Sidebar */
+.heron-sidebar {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.heron-sidebar .sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.heron-sidebar .sidebar-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.sidebar-subtitle {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.heron-controls {
+  padding: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.heron-controls h3 {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-secondary);
+  margin-bottom: 12px;
+}
+
+.heron-btn {
+  width: 100%;
+  padding: 10px 16px;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.heron-btn:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.heron-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.light-effect-select {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--color-surface-elevated);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.light-effect-select:hover:not(:disabled) {
+  border-color: var(--color-primary);
+}
+
+.light-effect-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(247, 181, 205, 0.2);
+}
+
+.light-effect-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.light-effect-select option {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.light-effect-hint {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  margin-top: 8px;
+  font-style: italic;
+}
+
+.heron-layers {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 16px;
+}
+
+.layers-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.layers-header h3 {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+/* Collapsible layers toggle button */
+.layers-header-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  margin-bottom: 12px;
+}
+
+.layers-header-toggle:hover {
+  background: #363132;
+  border-color: var(--color-primary);
+}
+
+.layers-header-toggle h3 {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-secondary);
+  margin: 0;
+  flex: 1;
+}
+
+.layers-toggle-icon {
+  font-size: 10px;
+  color: var(--color-text-secondary);
+  transition: transform 0.2s;
+  width: 12px;
+  display: inline-block;
+}
+
+.layers-toggle-icon.expanded {
+  transform: rotate(0deg);
+}
+
+.layer-count {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+}
+
+.layers-loading,
+.layers-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.layers-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.heron-btn-small {
+  flex: 1;
+  padding: 6px 12px;
+  background: var(--color-surface-elevated);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.heron-btn-small:hover {
+  background: var(--color-bg);
+  border-color: var(--color-primary);
+}
+
+.layers-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.layer-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.layer-item:hover {
+  background: #363132;
+  border-color: var(--color-primary);
+}
+
+.layer-item input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: var(--color-primary);
+  width: 16px;
+  height: 16px;
+}
+
+.layer-color-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  flex-shrink: 0;
+}
+
+.layer-name {
+  font-size: 13px;
+  color: var(--color-text);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Scrollbar for layers list */
+.layers-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.layers-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.layers-list::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+.layers-list::-webkit-scrollbar-thumb:hover {
+  background: #bdbdbd;
+}
+
+/* ============================================================================
+   HERON WINGS LIGHT PANEL (Right Sidebar)
+   ============================================================================ */
+
+.light-panel {
+  width: 280px;
+  min-width: 280px;
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.light-panel-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.light-panel-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.light-panel-reset {
+  padding: 6px 12px;
+  background: var(--color-surface-elevated);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.light-panel-reset:hover:not(:disabled) {
+  background: var(--color-bg);
+  border-color: var(--color-primary);
+  color: var(--color-text);
+}
+
+.light-panel-reset:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.light-panel-section {
+  padding: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.light-panel-section:last-child {
+  border-bottom: none;
+}
+
+.light-panel-section h3 {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-secondary);
+  margin-bottom: 16px;
+}
+
+.light-control {
+  margin-bottom: 16px;
+}
+
+.light-control:last-child {
+  margin-bottom: 0;
+}
+
+.light-control label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.light-control label span:first-child {
+  flex: 1;
+}
+
+.light-value {
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  background: var(--color-bg);
+  padding: 2px 6px;
+  border-radius: 3px;
+  min-width: 48px;
+  text-align: right;
+}
+
+.light-control input[type="range"] {
+  width: 100%;
+  height: 4px;
+  background: var(--color-bg);
+  border-radius: 2px;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.light-control input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--color-primary);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.light-control input[type="range"]::-webkit-slider-thumb:hover {
+  background: var(--color-primary-hover);
+  transform: scale(1.1);
+}
+
+.light-control input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--color-primary);
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.light-control input[type="range"]::-moz-range-thumb:hover {
+  background: var(--color-primary-hover);
+  transform: scale(1.1);
+}
+
+.light-control input[type="range"]:disabled {
+  opacity: 0.5;
+}
+
+.light-control input[type="range"]:disabled::-webkit-slider-thumb {
+  cursor: not-allowed;
+}
+
+.light-control input[type="range"]:disabled::-moz-range-thumb {
+  cursor: not-allowed;
+}
+
+/* Checkbox control variant */
+.checkbox-control label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 0;
+  cursor: pointer;
+}
+
+.checkbox-control input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.checkbox-control input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+}
+
+/* Scrollbar for light panel */
+.light-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+.light-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.light-panel::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+.light-panel::-webkit-scrollbar-thumb:hover {
+  background: #bdbdbd;
 }
