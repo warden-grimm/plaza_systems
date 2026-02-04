@@ -90,6 +90,22 @@ export function HeronLightPanel({
 
         <div className="light-control">
           <label>
+            <span>Wash Intensity</span>
+            <span className="light-value">{settings.washIntensity.toFixed(2)}</span>
+          </label>
+          <input
+            type="range"
+            min="0"
+            max="24"
+            step="0.05"
+            value={settings.washIntensity}
+            onChange={(e) => handleChange('washIntensity', parseFloat(e.target.value))}
+            disabled={isLoading}
+          />
+        </div>
+
+        <div className="light-control">
+          <label>
             <span>Edge LED Glow</span>
             <span className="light-value">{settings.edgeGlowIntensity.toFixed(2)}</span>
           </label>

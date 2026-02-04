@@ -11,6 +11,8 @@ interface HeronWingsSidebarProps {
   isLoading: boolean;
   lightEffect: LightEffect;
   onLightEffectChange: (effect: LightEffect) => void;
+  washLightEffect: LightEffect;
+  onWashLightEffectChange: (effect: LightEffect) => void;
 }
 
 export function HeronWingsSidebar({
@@ -21,7 +23,9 @@ export function HeronWingsSidebar({
   onResetCamera,
   isLoading,
   lightEffect,
-  onLightEffectChange
+  onLightEffectChange,
+  washLightEffect,
+  onWashLightEffectChange
 }: HeronWingsSidebarProps) {
   const [layersExpanded, setLayersExpanded] = useState(false);
   const visibleCount = layers.filter(l => l.visible).length;
@@ -46,20 +50,41 @@ export function HeronWingsSidebar({
 
       <div className="heron-controls">
         <h3>Light Effects</h3>
-        <select
-          className="light-effect-select"
-          value={lightEffect}
-          onChange={(e) => onLightEffectChange(e.target.value as LightEffect)}
-          disabled={isLoading}
-        >
-          {LIGHT_EFFECTS.map((effect) => (
-            <option key={effect.id} value={effect.id}>
-              {effect.name}
-            </option>
-          ))}
-        </select>
+
+        <div className="light-effect-group">
+          <label className="light-effect-label">Linear</label>
+          <select
+            className="light-effect-select"
+            value={lightEffect}
+            onChange={(e) => onLightEffectChange(e.target.value as LightEffect)}
+            disabled={isLoading}
+          >
+            {LIGHT_EFFECTS.map((effect) => (
+              <option key={effect.id} value={effect.id}>
+                {effect.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="light-effect-group">
+          <label className="light-effect-label">Wash</label>
+          <select
+            className="light-effect-select"
+            value={washLightEffect}
+            onChange={(e) => onWashLightEffectChange(e.target.value as LightEffect)}
+            disabled={isLoading}
+          >
+            {LIGHT_EFFECTS.map((effect) => (
+              <option key={effect.id} value={effect.id}>
+                {effect.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <p className="light-effect-hint">
-          Applies to Edge LED and Base Lights layers
+          Linear: Edge LED + Base Lights | Wash: Wash Lights
         </p>
       </div>
 

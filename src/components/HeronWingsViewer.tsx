@@ -50,6 +50,7 @@ export interface LightSettings {
   ambientIntensity: number;
   directionalIntensity: number;
   emitterIntensity: number;
+  washIntensity: number;
   edgeGlowIntensity: number;
   effectSpeed: number;
   bloomStrength: number;
@@ -64,6 +65,7 @@ export const DEFAULT_LIGHT_SETTINGS: LightSettings = {
   ambientIntensity: 0.25,
   directionalIntensity: 0.5,
   emitterIntensity: 1.7,
+  washIntensity: 1.0,
   edgeGlowIntensity: 1.5,
   effectSpeed: 1.0,
   bloomStrength: 0.07,
@@ -76,18 +78,21 @@ export const DEFAULT_LIGHT_SETTINGS: LightSettings = {
 
 const EDGE_LED_LAYER_NAME = 'Edge LED';
 const BASE_LIGHTS_LAYER_NAME = 'Base Lights';
+const WASH_LIGHTS_LAYER_NAME = 'Wash Lights';
 const FACE_LAYER_NAME = 'Face';
 const EMITTER_GUIDES_LAYER_NAME = 'Emitters';
 
-// Layer names that should have emissive materials
-const EMISSIVE_LAYER_NAMES = [EDGE_LED_LAYER_NAME, BASE_LIGHTS_LAYER_NAME] as const;
+// Layer names that should have emissive materials (Linear lights)
+const LINEAR_EMISSIVE_LAYER_NAMES = [EDGE_LED_LAYER_NAME, BASE_LIGHTS_LAYER_NAME] as const;
+// All emissive layer names including Wash lights
+const EMISSIVE_LAYER_NAMES = [EDGE_LED_LAYER_NAME, BASE_LIGHTS_LAYER_NAME, WASH_LIGHTS_LAYER_NAME] as const;
 
 // Layer name for semi-gloss material
 const SEMI_GLOSS_LAYER_NAME = 'Grass Graphic';
 
 const TAU = Math.PI * 2;
 
-type EmissiveLayerType = 'edge-led' | 'base-lights';
+type EmissiveLayerType = 'edge-led' | 'base-lights' | 'wash-lights';
 
 interface EmissiveEmitterLight {
   light: THREE.PointLight | THREE.SpotLight;
@@ -392,6 +397,33 @@ function neutralizeMaterialEmission(material: THREE.Material | THREE.Material[])
   });
 }
 
+function cloneMaterialSet(material: THREE.Material | THREE.Material[]): THREE.Material | THREE.Material[] {
+  return Array.isArray(material)
+    ? material.map((mat) => mat.clone())
+    : material.clone();
+}
+
+function applyPoweredDownMaterialLook(material: THREE.Material | THREE.Material[]): void {
+  const materials = Array.isArray(material) ? material : [material];
+  materials.forEach((mat) => {
+    const colorMaterial = mat as THREE.Material & {
+      color?: THREE.Color;
+      roughness?: number;
+      metalness?: number;
+    };
+    if (colorMaterial.color instanceof THREE.Color) {
+      colorMaterial.color.set(0xd2d2d2);
+    }
+    if (typeof colorMaterial.roughness === 'number') {
+      colorMaterial.roughness = 1;
+    }
+    if (typeof colorMaterial.metalness === 'number') {
+      colorMaterial.metalness = 0;
+    }
+    mat.needsUpdate = true;
+  });
+}
+
 function getMeshHorizontalAxisDirection(mesh: THREE.Mesh): THREE.Vector3 {
   const direction = new THREE.Vector3();
   if (mesh.geometry instanceof THREE.BufferGeometry) {
@@ -480,6 +512,7 @@ interface HeronWingsViewerProps {
   onResetCamera: () => void;
   registerResetCamera: (fn: () => void) => void;
   lightEffect: LightEffect;
+  washLightEffect: LightEffect;
   lightSettings: LightSettings;
 }
 
@@ -590,12 +623,10 @@ const glowFragmentShader = `
 
     vec3 finalColor = color * intensity * (0.8 + 0.2 * fresnel);
 
-    // Soft saturation-preserving clamp to prevent blown-out whites
-    // Uses luminance-based scaling to keep color ratios intact
+    // Allow HDR headroom so bloom has enough energy, while still limiting hard blowouts.
     float maxChannel = max(finalColor.r, max(finalColor.g, finalColor.b));
-    if (maxChannel > 1.0) {
-      // Scale down proportionally to preserve saturation
-      finalColor = finalColor / maxChannel;
+    if (maxChannel > 3.0) {
+      finalColor = finalColor * (3.0 / maxChannel);
     }
 
     gl_FragColor = vec4(finalColor, 1.0);
@@ -607,6 +638,7 @@ export function HeronWingsViewer({
   onLayersLoaded,
   registerResetCamera,
   lightEffect,
+  washLightEffect,
   lightSettings
 }: HeronWingsViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -620,12 +652,19 @@ export function HeronWingsViewer({
     target: THREE.Vector3;
   } | null>(null);
   const animationIdRef = useRef<number | null>(null);
+  // Linear light meshes (Edge LED + Base Lights)
   const emissiveMeshesRef = useRef<THREE.Mesh[]>([]);
   const shaderMaterialsRef = useRef<THREE.ShaderMaterial[]>([]);
   const originalMaterialsRef = useRef<Map<THREE.Mesh, THREE.Material | THREE.Material[]>>(new Map());
+  // Wash light meshes (separate control)
+  const washMeshesRef = useRef<THREE.Mesh[]>([]);
+  const washShaderMaterialsRef = useRef<THREE.ShaderMaterial[]>([]);
+  const washOriginalMaterialsRef = useRef<Map<THREE.Mesh, THREE.Material | THREE.Material[]>>(new Map());
   const emissiveEmitterLightsRef = useRef<EmissiveEmitterLight[]>([]);
   const activeLightEffectRef = useRef<LightEffect>(lightEffect);
+  const activeWashLightEffectRef = useRef<LightEffect>(washLightEffect);
   const emitterIntensityRef = useRef<number>(lightSettings.emitterIntensity);
+  const washIntensityRef = useRef<number>(lightSettings.washIntensity);
   const effectSpeedRef = useRef<number>(lightSettings.effectSpeed);
   const debugModeRef = useRef<boolean>(lightSettings.debugLightingMode);
   const debugHelpersRef = useRef<THREE.Object3D[]>([]);
@@ -730,8 +769,15 @@ export function HeronWingsViewer({
   useEffect(() => {
     debugModeRef.current = lightSettings.debugLightingMode;
     emitterIntensityRef.current = lightSettings.emitterIntensity;
+    washIntensityRef.current = lightSettings.washIntensity;
     effectSpeedRef.current = lightSettings.effectSpeed;
+    // Update linear light shader materials
     shaderMaterialsRef.current.forEach((material) => {
+      material.uniforms.uIntensity.value = lightSettings.edgeGlowIntensity;
+      material.uniforms.uSpeed.value = lightSettings.effectSpeed;
+    });
+    // Update wash light shader materials
+    washShaderMaterialsRef.current.forEach((material) => {
       material.uniforms.uIntensity.value = lightSettings.edgeGlowIntensity;
       material.uniforms.uSpeed.value = lightSettings.effectSpeed;
     });
@@ -759,7 +805,7 @@ export function HeronWingsViewer({
     rebuildDebugHelpers();
   }, [lightSettings, rebuildDebugHelpers]);
 
-  // Update shader effect when lightEffect prop changes
+  // Update shader effect when lightEffect prop changes (Linear lights: Edge LED + Base Lights)
   useEffect(() => {
     activeLightEffectRef.current = lightEffect;
 
@@ -770,8 +816,10 @@ export function HeronWingsViewer({
     const currentTime = clockRef.current.getElapsedTime();
     const animatedColor = new THREE.Color();
 
-    if (lightEffect === 'off') {
-      // Restore original materials
+    const isLinearGlowActive = lightEffect !== 'off' && lightSettings.edgeGlowIntensity > 0.0001;
+
+    if (!isLinearGlowActive) {
+      // Restore original materials for linear lights
       meshes.forEach((mesh) => {
         const original = originalMaterials.get(mesh);
         if (original) {
@@ -796,21 +844,80 @@ export function HeronWingsViewer({
       });
     }
 
-    emitterLights.forEach((emitter) => {
-      const visible = shouldEmitterBeVisible(emitter, lightEffect);
-      emitter.light.visible = visible;
-      if (emitter.target) {
-        emitter.target.visible = visible;
-      }
-      if (!visible) {
-        emitter.light.intensity = 0;
-        return;
-      }
-      const effectMultiplier = evaluateEmitterEffect(lightEffect, currentTime, emitter.phase, animatedColor, effectSpeedRef.current);
-      emitter.light.color.copy(animatedColor);
-      emitter.light.intensity = emitter.baseIntensity * effectMultiplier * emitterIntensityRef.current;
-    });
-  }, [lightEffect]);
+    // Update only linear emitters (edge-led, base-lights)
+    emitterLights
+      .filter((emitter) => emitter.layerType === 'edge-led' || emitter.layerType === 'base-lights')
+      .forEach((emitter) => {
+        const visible = shouldEmitterBeVisible(emitter, lightEffect);
+        emitter.light.visible = visible;
+        if (emitter.target) {
+          emitter.target.visible = visible;
+        }
+        if (!visible) {
+          emitter.light.intensity = 0;
+          return;
+        }
+        const effectMultiplier = evaluateEmitterEffect(lightEffect, currentTime, emitter.phase, animatedColor, effectSpeedRef.current);
+        emitter.light.color.copy(animatedColor);
+        emitter.light.intensity = emitter.baseIntensity * effectMultiplier * emitterIntensityRef.current;
+      });
+  }, [lightEffect, lightSettings.edgeGlowIntensity]);
+
+  // Update shader effect when washLightEffect prop changes (Wash Lights)
+  useEffect(() => {
+    activeWashLightEffectRef.current = washLightEffect;
+
+    const meshes = washMeshesRef.current;
+    const shaderMaterials = washShaderMaterialsRef.current;
+    const originalMaterials = washOriginalMaterialsRef.current;
+    const emitterLights = emissiveEmitterLightsRef.current;
+    const currentTime = clockRef.current.getElapsedTime();
+    const animatedColor = new THREE.Color();
+
+    if (washLightEffect === 'off') {
+      // Restore original materials for wash lights
+      meshes.forEach((mesh) => {
+        const original = originalMaterials.get(mesh);
+        if (original) {
+          mesh.material = original;
+        }
+      });
+    } else {
+      // Apply shader materials
+      const effectVisual = getEffectVisual(washLightEffect);
+
+      // Update shader uniforms
+      shaderMaterials.forEach((material) => {
+        material.uniforms.uColor.value = effectVisual.baseColor;
+        material.uniforms.uEffectType.value = effectVisual.effectType;
+      });
+
+      // Apply shader materials to meshes
+      meshes.forEach((mesh, index) => {
+        if (shaderMaterials[index]) {
+          mesh.material = shaderMaterials[index];
+        }
+      });
+    }
+
+    // Update only wash emitters
+    emitterLights
+      .filter((emitter) => emitter.layerType === 'wash-lights')
+      .forEach((emitter) => {
+        const visible = shouldEmitterBeVisible(emitter, washLightEffect);
+        emitter.light.visible = visible;
+        if (emitter.target) {
+          emitter.target.visible = visible;
+        }
+        if (!visible) {
+          emitter.light.intensity = 0;
+          return;
+        }
+        const effectMultiplier = evaluateEmitterEffect(washLightEffect, currentTime, emitter.phase, animatedColor, effectSpeedRef.current);
+        emitter.light.color.copy(animatedColor);
+        emitter.light.intensity = emitter.baseIntensity * effectMultiplier * washIntensityRef.current;
+      });
+  }, [washLightEffect]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -933,7 +1040,15 @@ export function HeronWingsViewer({
 
         layerIndicesRef.current = layerNameToIndex;
 
-        // Find emissive layer indices
+        // Find emissive layer indices - Linear lights (Edge LED + Base Lights)
+        const linearEmissiveLayerIndices = new Set<number>();
+        LINEAR_EMISSIVE_LAYER_NAMES.forEach(name => {
+          const index = layerNameToIndex.get(name);
+          if (index !== undefined) {
+            linearEmissiveLayerIndices.add(index);
+          }
+        });
+        // All emissive layers including wash
         const emissiveLayerIndices = new Set<number>();
         EMISSIVE_LAYER_NAMES.forEach(name => {
           const index = layerNameToIndex.get(name);
@@ -943,6 +1058,7 @@ export function HeronWingsViewer({
         });
         const edgeLedLayerIndex = layerNameToIndex.get(EDGE_LED_LAYER_NAME);
         const baseLightsLayerIndex = layerNameToIndex.get(BASE_LIGHTS_LAYER_NAME);
+        const washLightsLayerIndex = layerNameToIndex.get(WASH_LIGHTS_LAYER_NAME);
         const faceLayerIndex = layerNameToIndex.get(FACE_LAYER_NAME);
         const emitterGuidesLayerIndex = layerNameToIndex.get(EMITTER_GUIDES_LAYER_NAME);
 
@@ -950,13 +1066,26 @@ export function HeronWingsViewer({
         const semiGlossLayerIndex = layerNameToIndex.get(SEMI_GLOSS_LAYER_NAME);
 
         // Find meshes on emissive layers and create shader materials
+        // Linear lights (Edge LED + Base Lights) - controlled by lightEffect
         const emissiveMeshes: THREE.Mesh[] = [];
         const shaderMaterials: THREE.ShaderMaterial[] = [];
         const originalMaterials = new Map<THREE.Mesh, THREE.Material | THREE.Material[]>();
+        // Wash lights - controlled by washLightEffect
+        const washMeshes: THREE.Mesh[] = [];
+        const washShaderMaterials: THREE.ShaderMaterial[] = [];
+        const washOriginalMaterials = new Map<THREE.Mesh, THREE.Material | THREE.Material[]>();
+
         const edgeLedMeshes: THREE.Mesh[] = [];
         const baseLightMeshes: THREE.Mesh[] = [];
+        const washLightMeshes: THREE.Mesh[] = [];
+        // Wash light positions from Points objects (not meshes)
+        const washLightPositions: THREE.Vector3[] = [];
         const emitterGuideObjects: THREE.Object3D[] = [];
         let faceNeutralizedCount = 0;
+
+        // Log all layer names for debugging
+        console.info('[Lighting] Available layers:', Array.from(layerNameToIndex.entries()).map(([name, idx]) => `${idx}: "${name}"`).join(', '));
+        console.info(`[Lighting] Looking for Wash Lights layer: "${WASH_LIGHTS_LAYER_NAME}" (index: ${washLightsLayerIndex})`);
 
         object.traverse((child) => {
           const layerIndex = child.userData?.attributes?.layerIndex;
@@ -968,9 +1097,29 @@ export function HeronWingsViewer({
             emitterGuideObjects.push(child);
           }
 
+          // Handle Points objects on Wash Lights layer (Rhino points come through as THREE.Points)
+          if (child instanceof THREE.Points && layerIndex === washLightsLayerIndex) {
+            const positions = child.geometry.getAttribute('position');
+            if (positions) {
+              // Get world matrix to transform local positions to world coordinates
+              child.updateMatrixWorld(true);
+              for (let i = 0; i < positions.count; i++) {
+                const localPos = new THREE.Vector3(
+                  positions.getX(i),
+                  positions.getY(i),
+                  positions.getZ(i)
+                );
+                const worldPos = localPos.applyMatrix4(child.matrixWorld);
+                washLightPositions.push(worldPos);
+              }
+              console.info(`[Lighting] Found ${positions.count} point(s) in Points object on Wash Lights layer`);
+            }
+          }
+
           if (child instanceof THREE.Mesh) {
             const isFaceLayer = layerIndex === faceLayerIndex;
-            const isEmissiveLayer = layerIndex !== undefined && emissiveLayerIndices.has(layerIndex) && !isFaceLayer;
+            const isLinearEmissiveLayer = layerIndex !== undefined && linearEmissiveLayerIndices.has(layerIndex) && !isFaceLayer;
+            const isWashLightsLayer = layerIndex === washLightsLayerIndex && !isFaceLayer;
 
             child.castShadow = true;
             child.receiveShadow = true;
@@ -996,10 +1145,13 @@ export function HeronWingsViewer({
               child.material = semiGlossMaterial;
             }
 
-            // Apply emissive materials to light layers
-            if (isEmissiveLayer) {
+            // Apply emissive materials to Linear light layers (Edge LED + Base Lights)
+            if (isLinearEmissiveLayer) {
               emissiveMeshes.push(child);
-              originalMaterials.set(child, child.material);
+              const linearOffMaterial = cloneMaterialSet(child.material);
+              neutralizeMaterialEmission(linearOffMaterial);
+              applyPoweredDownMaterialLook(linearOffMaterial);
+              originalMaterials.set(child, linearOffMaterial);
 
               // Create shader material for this mesh
               const shaderMaterial = new THREE.ShaderMaterial({
@@ -1026,6 +1178,34 @@ export function HeronWingsViewer({
                 baseLightMeshes.push(child);
               }
             }
+
+            // Apply emissive materials to Wash Lights layer
+            if (isWashLightsLayer) {
+              washMeshes.push(child);
+              const washOffMaterial = cloneMaterialSet(child.material);
+              neutralizeMaterialEmission(washOffMaterial);
+              applyPoweredDownMaterialLook(washOffMaterial);
+              washOriginalMaterials.set(child, washOffMaterial);
+              washLightMeshes.push(child);
+
+              // Create shader material for wash lights
+              const washShaderMaterial = new THREE.ShaderMaterial({
+                vertexShader: glowVertexShader,
+                fragmentShader: glowFragmentShader,
+                uniforms: {
+                  uTime: { value: 0 },
+                  uColor: { value: new THREE.Color(0x5CA8FF) }, // Default blue for wash
+                  uIntensity: { value: lightSettings.edgeGlowIntensity },
+                  uSpeed: { value: lightSettings.effectSpeed },
+                  uEffectType: { value: 0 }
+                },
+                side: THREE.DoubleSide,
+                transparent: false,
+                depthWrite: true
+              });
+
+              washShaderMaterials.push(washShaderMaterial);
+            }
           }
         });
 
@@ -1038,6 +1218,56 @@ export function HeronWingsViewer({
         emissiveMeshesRef.current = emissiveMeshes;
         shaderMaterialsRef.current = shaderMaterials;
         originalMaterialsRef.current = originalMaterials;
+
+        // Store wash light refs
+        washMeshesRef.current = washMeshes;
+        washShaderMaterialsRef.current = washShaderMaterials;
+        washOriginalMaterialsRef.current = washOriginalMaterials;
+
+        console.info(`[Lighting] Found ${washMeshes.length} wash light mesh(es).`);
+
+        const initialLinearEffect = activeLightEffectRef.current;
+        const initialLinearGlowActive = initialLinearEffect !== 'off' && lightSettings.edgeGlowIntensity > 0.0001;
+        if (initialLinearGlowActive) {
+          const initialLinearVisual = getEffectVisual(initialLinearEffect);
+          shaderMaterials.forEach((material) => {
+            material.uniforms.uColor.value = initialLinearVisual.baseColor;
+            material.uniforms.uEffectType.value = initialLinearVisual.effectType;
+          });
+          emissiveMeshes.forEach((mesh, index) => {
+            if (shaderMaterials[index]) {
+              mesh.material = shaderMaterials[index];
+            }
+          });
+        } else {
+          emissiveMeshes.forEach((mesh) => {
+            const original = originalMaterials.get(mesh);
+            if (original) {
+              mesh.material = original;
+            }
+          });
+        }
+
+        const initialWashEffect = activeWashLightEffectRef.current;
+        if (initialWashEffect !== 'off') {
+          const initialWashVisual = getEffectVisual(initialWashEffect);
+          washShaderMaterials.forEach((material) => {
+            material.uniforms.uColor.value = initialWashVisual.baseColor;
+            material.uniforms.uEffectType.value = initialWashVisual.effectType;
+          });
+          washMeshes.forEach((mesh, index) => {
+            if (washShaderMaterials[index]) {
+              mesh.material = washShaderMaterials[index];
+            }
+          });
+        } else {
+          washMeshes.forEach((mesh) => {
+            const original = washOriginalMaterials.get(mesh);
+            if (original) {
+              mesh.material = original;
+            }
+          });
+        }
 
         onLayersLoaded(rhinoLayers);
 
@@ -1318,6 +1548,72 @@ export function HeronWingsViewer({
           addBaseEmitter(candidate.point, candidate.mesh, candidate.phase);
         });
 
+        // Create omnidirectional point lights for Wash Lights
+        // Moderate intensity with physically-correct falloff
+        const washEmitterDistance = Math.max(maxDim * 0.16, 20);  // 2x radius
+        const washBaseIntensity = 100;  // Increased base intensity
+
+        const addWashEmitter = (position: THREE.Vector3, sourceObject: THREE.Object3D, phase: number) => {
+          // Slightly reduced decay for a bit more usable wash reach.
+          const pointLight = new THREE.PointLight(0x5CA8FF, washBaseIntensity, washEmitterDistance, 1.8);
+          pointLight.position.copy(position);
+          pointLight.position.y += Math.max(maxDim * 0.01, 0.5);
+
+          const emitterBaseIntensity = washBaseIntensity;
+
+          pointLight.intensity = emitterBaseIntensity;
+          pointLight.distance = washEmitterDistance;
+
+          scene.add(pointLight);
+          emissiveEmitterLights.push({
+            light: pointLight,
+            sourceObject,
+            followSourceVisibility: true,
+            layerType: 'wash-lights',
+            phase,
+            baseIntensity: emitterBaseIntensity
+          });
+        };
+
+        // Collect wash light candidates from both meshes and point positions
+        const washCandidates: Array<{ sourceObject: THREE.Object3D | null; point: THREE.Vector3; phase: number }> = [];
+
+        // From mesh objects
+        washLightMeshes.forEach((mesh, meshIndex) => {
+          const points = sampleMeshWorldPoints(mesh, 1);
+          points.forEach((point) => {
+            const fallbackPhase = meshIndex / Math.max(washLightMeshes.length + washLightPositions.length, 1);
+            const uvPhase = getNearestUvPhase(point, edgeUvSamples);
+            washCandidates.push({
+              sourceObject: mesh,
+              point,
+              phase: uvPhase !== null ? invertUvPhase(uvPhase) : (fallbackPhase % 1)
+            });
+          });
+        });
+
+        // From Points objects (Rhino points)
+        washLightPositions.forEach((position, posIndex) => {
+          const fallbackPhase = (washLightMeshes.length + posIndex) / Math.max(washLightMeshes.length + washLightPositions.length, 1);
+          const uvPhase = getNearestUvPhase(position, edgeUvSamples);
+          washCandidates.push({
+            sourceObject: null, // No source object for point positions
+            point: position,
+            phase: uvPhase !== null ? invertUvPhase(uvPhase) : (fallbackPhase % 1)
+          });
+        });
+
+        console.info(`[Lighting] Wash light candidates: ${washLightMeshes.length} from meshes, ${washLightPositions.length} from points`);
+
+        washCandidates.forEach((candidate) => {
+          // Create a dummy object for source if null (for points without mesh)
+          const dummySource = new THREE.Object3D();
+          dummySource.visible = true;
+          addWashEmitter(candidate.point, candidate.sourceObject || dummySource, candidate.phase);
+        });
+
+        console.info(`[Lighting] Created ${washCandidates.length} wash light emitter candidates, ${washCandidates.length} active.`);
+
         emissiveEmitterLightsRef.current = emissiveEmitterLights;
         const avgEmitterDistance = emissiveEmitterLights.length > 0
           ? emissiveEmitterLights.reduce((sum, emitter) => {
@@ -1336,7 +1632,11 @@ export function HeronWingsViewer({
         const initialEmitterColor = new THREE.Color();
         const initialTime = clockRef.current.getElapsedTime();
         emissiveEmitterLights.forEach((emitter) => {
-          const visible = shouldEmitterBeVisible(emitter, activeLightEffectRef.current);
+          // Use appropriate effect based on layer type
+          const effect = emitter.layerType === 'wash-lights'
+            ? activeWashLightEffectRef.current
+            : activeLightEffectRef.current;
+          const visible = shouldEmitterBeVisible(emitter, effect);
           emitter.light.visible = visible;
           if (emitter.target) {
             emitter.target.visible = visible;
@@ -1346,14 +1646,18 @@ export function HeronWingsViewer({
             return;
           }
           const effectMultiplier = evaluateEmitterEffect(
-            activeLightEffectRef.current,
+            effect,
             initialTime,
             emitter.phase,
             initialEmitterColor,
             effectSpeedRef.current
           );
           emitter.light.color.copy(initialEmitterColor);
-          emitter.light.intensity = emitter.baseIntensity * effectMultiplier * emitterIntensityRef.current;
+          // Use appropriate intensity multiplier based on layer type
+          const intensityMultiplier = emitter.layerType === 'wash-lights'
+            ? washIntensityRef.current
+            : emitterIntensityRef.current;
+          emitter.light.intensity = emitter.baseIntensity * effectMultiplier * intensityMultiplier;
         });
 
         // Add matte ground plane that receives light
@@ -1397,11 +1701,22 @@ export function HeronWingsViewer({
 
       // Update shader uniforms with time
       const elapsedTime = clockRef.current.getElapsedTime();
+      // Update linear light shaders
       shaderMaterialsRef.current.forEach((material) => {
         material.uniforms.uTime.value = elapsedTime;
       });
+      // Update wash light shaders
+      washShaderMaterialsRef.current.forEach((material) => {
+        material.uniforms.uTime.value = elapsedTime;
+      });
+
+      // Update emitters based on their layer type
       emissiveEmitterLightsRef.current.forEach((emitter) => {
-        const visible = shouldEmitterBeVisible(emitter, activeLightEffectRef.current);
+        // Use appropriate effect based on layer type
+        const effect = emitter.layerType === 'wash-lights'
+          ? activeWashLightEffectRef.current
+          : activeLightEffectRef.current;
+        const visible = shouldEmitterBeVisible(emitter, effect);
         emitter.light.visible = visible;
         if (emitter.target) {
           emitter.target.visible = visible;
@@ -1412,14 +1727,18 @@ export function HeronWingsViewer({
         }
 
         const effectMultiplier = evaluateEmitterEffect(
-          activeLightEffectRef.current,
+          effect,
           elapsedTime,
           emitter.phase,
           animatedEmitterColor,
           effectSpeedRef.current
         );
         emitter.light.color.copy(animatedEmitterColor);
-        emitter.light.intensity = emitter.baseIntensity * effectMultiplier * emitterIntensityRef.current;
+        // Use appropriate intensity multiplier based on layer type
+        const intensityMultiplier = emitter.layerType === 'wash-lights'
+          ? washIntensityRef.current
+          : emitterIntensityRef.current;
+        emitter.light.intensity = emitter.baseIntensity * effectMultiplier * intensityMultiplier;
       });
       if (debugModeRef.current) {
         debugUpdatableHelpersRef.current.forEach((helper) => helper.update());

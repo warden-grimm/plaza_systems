@@ -1149,6 +1149,7 @@ function App() {
   const [heronLayers, setHeronLayers] = useState<RhinoLayer[]>([]);
   const [heronLoading, setHeronLoading] = useState(true);
   const [lightEffect, setLightEffect] = useState<LightEffect>('off');
+  const [washLightEffect, setWashLightEffect] = useState<LightEffect>('off');
   const [lightSettings, setLightSettings] = useState<LightSettings>(DEFAULT_LIGHT_SETTINGS);
   const resetCameraRef = useRef<(() => void) | null>(null);
 
@@ -1274,7 +1275,7 @@ function App() {
 
   // Heron Wings handlers
   const handleHeronLayersLoaded = useCallback((layers: RhinoLayer[]) => {
-    const defaultHiddenLayers = new Set(['emitters', 'base lights']);
+    const defaultHiddenLayers = new Set(['emitters', 'base lights', 'wash lights']);
     setHeronLayers(layers.map((layer) => ({
       ...layer,
       visible: !defaultHiddenLayers.has(layer.name.trim().toLowerCase())
@@ -1306,6 +1307,10 @@ function App() {
 
   const handleLightEffectChange = useCallback((effect: LightEffect) => {
     setLightEffect(effect);
+  }, []);
+
+  const handleWashLightEffectChange = useCallback((effect: LightEffect) => {
+    setWashLightEffect(effect);
   }, []);
 
   const handleLightSettingsChange = useCallback((settings: LightSettings) => {
@@ -1433,6 +1438,8 @@ function App() {
               isLoading={heronLoading}
               lightEffect={lightEffect}
               onLightEffectChange={handleLightEffectChange}
+              washLightEffect={washLightEffect}
+              onWashLightEffectChange={handleWashLightEffectChange}
             />
 
             <HeronWingsViewer
@@ -1441,6 +1448,7 @@ function App() {
               onResetCamera={handleResetHeronCamera}
               registerResetCamera={registerResetCamera}
               lightEffect={lightEffect}
+              washLightEffect={washLightEffect}
               lightSettings={lightSettings}
             />
 

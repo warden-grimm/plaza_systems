@@ -1212,6 +1212,20 @@ input:focus-visible {
   color: var(--color-text);
 }
 
+.light-effect-group {
+  margin-bottom: 12px;
+}
+
+.light-effect-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 .light-effect-hint {
   font-size: 11px;
   color: var(--color-text-secondary);
