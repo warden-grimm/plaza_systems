@@ -357,6 +357,10 @@ function getNearestUvPhase(worldPoint: THREE.Vector3, uvSamples: EdgeUvSample[])
   return nearestSample.u;
 }
 
+function invertUvPhase(uvPhase: number): number {
+  return ((1 - uvPhase) % 1 + 1) % 1;
+}
+
 function downsampleEvenly<T>(items: T[], maxCount: number): T[] {
   if (maxCount <= 0) {
     return [];
@@ -544,13 +548,13 @@ const glowFragmentShader = `
     } else if (uEffectType == 4) {
       // Rainbow wave - color flows along UV
       float hue = fract(u - t * 0.3);
-      color = hsv2rgb(vec3(hue, 0.85, 1.0));
+      color = hsv2rgb(vec3(hue, 0.9, 0.7));  // Reduced V from 1.0 to 0.7 to prevent blow-out
       float wave = 0.5 + 0.5 * sin(u * 6.28318 * 2.0 - t * 2.5);
       intensity *= 0.3 + 0.7 * wave;
     } else if (uEffectType == 5) {
       // Rainbow ripple - radiating color waves
       float hue = fract(u * 2.0 + t * 0.2);
-      color = hsv2rgb(vec3(hue, 0.9, 1.0));
+      color = hsv2rgb(vec3(hue, 0.95, 0.7));  // Reduced V from 1.0 to 0.7 to prevent blow-out
       float ripple = 0.5 + 0.5 * sin(u * 6.28318 * 4.0 + t * 3.5);
       intensity *= 0.2 + 0.8 * ripple;
     } else if (uEffectType == 6) {
@@ -585,6 +589,14 @@ const glowFragmentShader = `
     fresnel = pow(fresnel, 0.5);
 
     vec3 finalColor = color * intensity * (0.8 + 0.2 * fresnel);
+
+    // Soft saturation-preserving clamp to prevent blown-out whites
+    // Uses luminance-based scaling to keep color ratios intact
+    float maxChannel = max(finalColor.r, max(finalColor.g, finalColor.b));
+    if (maxChannel > 1.0) {
+      // Scale down proportionally to preserve saturation
+      finalColor = finalColor / maxChannel;
+    }
 
     gl_FragColor = vec4(finalColor, 1.0);
   }
@@ -1068,6 +1080,7 @@ export function HeronWingsViewer({
         const maxShadowCastingBaseEmitters = 0;
         let edgeShadowCasterCount = 0;
         let baseShadowCasterCount = 0;
+        let edgeRigCount = 0;
         const groundY = box.min.y + 0.1;
         // Reduce throw to 1/4 of the previous setup.
         const edgeEmitterDistance = Math.max(maxDim * 0.175, 24);
@@ -1076,7 +1089,12 @@ export function HeronWingsViewer({
         const baseMinIntensity = Math.max(maxDim * 4, 3500);
         const edgeTargetGroundLux = 8;
         const baseTargetGroundLux = 11;
-        const edgeLineSegmentCount = 3;
+        const edgeThrowPadding = 4.0;
+        const baseThrowPadding = 4.0;
+        const throwExtensionScale = 1.1;
+        const fallbackEdgeLineSegmentCount = 3;
+        const guideEdgeLightFractions = [1 / 3, 2 / 3];
+        const guideEdgeLineSegmentCount = guideEdgeLightFractions.length;
         const edgeLineLength = Math.max(maxDim * 0.16, 24);
 
         const addEdgeEmitterRig = (
@@ -1084,7 +1102,9 @@ export function HeronWingsViewer({
           rigEnd: THREE.Vector3,
           sourceObject: THREE.Object3D,
           phase: number,
-          followSourceVisibility: boolean
+          followSourceVisibility: boolean,
+          segmentCount: number,
+          segmentFractions?: number[]
         ) => {
           const rigDirection = rigEnd.clone().sub(rigStart);
           rigDirection.y = 0;
@@ -1093,15 +1113,32 @@ export function HeronWingsViewer({
           }
           rigDirection.normalize();
 
-          const horizontalSpan = rigStart.clone().setY(0).distanceTo(rigEnd.clone().setY(0));
-          const rigLength = Math.max(horizontalSpan, edgeLineLength);
-          const segmentSpacing = edgeLineSegmentCount > 1 ? rigLength / (edgeLineSegmentCount - 1) : 0;
-          const segmentCenter = (edgeLineSegmentCount - 1) * 0.5;
-          const rigCenter = rigStart.clone().lerp(rigEnd, 0.5);
+          edgeRigCount += 1;
+          const normalizedFractions = segmentFractions?.length
+            ? segmentFractions.map((fraction) => THREE.MathUtils.clamp(fraction, 0, 1))
+            : null;
+          const normalizedSegmentCount = normalizedFractions?.length ?? Math.max(1, Math.round(segmentCount));
+          const shadowSegmentIndex = Math.round((normalizedSegmentCount - 1) * 0.5);
+          const segmentPositions: THREE.Vector3[] = [];
 
-          for (let segmentIndex = 0; segmentIndex < edgeLineSegmentCount; segmentIndex += 1) {
-            const offset = (segmentIndex - segmentCenter) * segmentSpacing;
-            const segmentPosition = rigCenter.clone().addScaledVector(rigDirection, offset);
+          if (normalizedFractions) {
+            normalizedFractions.forEach((fraction) => {
+              segmentPositions.push(rigStart.clone().lerp(rigEnd, fraction));
+            });
+          } else {
+            const horizontalSpan = rigStart.clone().setY(0).distanceTo(rigEnd.clone().setY(0));
+            const rigLength = Math.max(horizontalSpan, edgeLineLength);
+            const segmentSpacing = normalizedSegmentCount > 1 ? rigLength / (normalizedSegmentCount - 1) : 0;
+            const segmentCenter = (normalizedSegmentCount - 1) * 0.5;
+            const rigCenter = rigStart.clone().lerp(rigEnd, 0.5);
+            for (let segmentIndex = 0; segmentIndex < normalizedSegmentCount; segmentIndex += 1) {
+              const offset = (segmentIndex - segmentCenter) * segmentSpacing;
+              segmentPositions.push(rigCenter.clone().addScaledVector(rigDirection, offset));
+            }
+          }
+
+          for (let segmentIndex = 0; segmentIndex < normalizedSegmentCount; segmentIndex += 1) {
+            const segmentPosition = segmentPositions[segmentIndex];
             const spotLight = new THREE.SpotLight(0xF7B5CD, 1, edgeEmitterDistance, 0.5, 0.45, 1.5);
             spotLight.position.copy(segmentPosition);
             spotLight.position.y += Math.max(maxDim * 0.015, 0.8);
@@ -1116,15 +1153,15 @@ export function HeronWingsViewer({
             spotLight.target = target;
 
             const throwToGround = spotLight.position.distanceTo(target.position);
-            const effectiveDistance = Math.max(edgeEmitterDistance, throwToGround * 1.1);
+            const effectiveDistance = (throwToGround + edgeThrowPadding) * throwExtensionScale;
             const photometricIntensity = edgeTargetGroundLux * effectiveDistance * effectiveDistance;
             const emitterRigIntensity = Math.max(edgeMinIntensity, photometricIntensity);
-            const emitterBaseIntensity = emitterRigIntensity / edgeLineSegmentCount;
+            const emitterBaseIntensity = emitterRigIntensity / normalizedSegmentCount;
 
             spotLight.intensity = emitterBaseIntensity;
             spotLight.distance = effectiveDistance;
 
-            const isShadowSegment = segmentIndex === Math.round(segmentCenter);
+            const isShadowSegment = segmentIndex === shadowSegmentIndex;
             if (isShadowSegment && edgeShadowCasterCount < maxShadowCastingEdgeEmitters) {
               spotLight.castShadow = true;
               spotLight.shadow.mapSize.set(1024, 1024);
@@ -1142,7 +1179,7 @@ export function HeronWingsViewer({
               sourceObject,
               followSourceVisibility,
               layerType: 'edge-led',
-              phase: (phase + segmentIndex / Math.max(edgeLineSegmentCount * 6, 1)) % 1,
+              phase: (phase + segmentIndex / Math.max(normalizedSegmentCount * 6, 1)) % 1,
               baseIntensity: emitterBaseIntensity
             });
           }
@@ -1157,7 +1194,7 @@ export function HeronWingsViewer({
           scene.add(target);
           spotLight.target = target;
           const throwToGround = spotLight.position.distanceTo(target.position);
-          const effectiveDistance = Math.max(baseEmitterDistance, throwToGround * 1.1);
+          const effectiveDistance = (throwToGround + baseThrowPadding) * throwExtensionScale;
           const photometricIntensity = baseTargetGroundLux * effectiveDistance * effectiveDistance;
           const emitterBaseIntensity = Math.max(baseMinIntensity, photometricIntensity);
           spotLight.intensity = emitterBaseIntensity;
@@ -1210,7 +1247,9 @@ export function HeronWingsViewer({
             start,
             end,
             sourceObject: guideObject,
-            phase: uvPhase ?? (guideIndex / Math.max(emitterGuideObjects.length, 1))
+            phase: uvPhase !== null
+              ? invertUvPhase(uvPhase)
+              : (guideIndex / Math.max(emitterGuideObjects.length, 1))
           });
         });
 
@@ -1233,15 +1272,23 @@ export function HeronWingsViewer({
             edgeCandidates.push({
               sourceObject: mesh,
               point,
-              phase: uvPhase ?? (fallbackPhase % 1),
+              phase: uvPhase !== null ? invertUvPhase(uvPhase) : (fallbackPhase % 1),
               direction
             });
           });
         });
 
         if (edgeGuideRigs.length > 0) {
-          downsampleEvenly(edgeGuideRigs, Math.max(maxEdgeEmitters, edgeGuideRigs.length)).forEach((guideRig) => {
-            addEdgeEmitterRig(guideRig.start, guideRig.end, guideRig.sourceObject, guideRig.phase, false);
+          edgeGuideRigs.forEach((guideRig) => {
+            addEdgeEmitterRig(
+              guideRig.start,
+              guideRig.end,
+              guideRig.sourceObject,
+              guideRig.phase,
+              false,
+              guideEdgeLineSegmentCount,
+              guideEdgeLightFractions
+            );
           });
         } else {
           const highestEdgeY = edgeCandidates.reduce((highest, candidate) => Math.max(highest, candidate.point.y), -Infinity);
@@ -1251,7 +1298,7 @@ export function HeronWingsViewer({
             const rigHalf = edgeLineLength * 0.5;
             const start = candidate.point.clone().addScaledVector(candidate.direction, -rigHalf);
             const end = candidate.point.clone().addScaledVector(candidate.direction, rigHalf);
-            addEdgeEmitterRig(start, end, candidate.sourceObject, candidate.phase, true);
+            addEdgeEmitterRig(start, end, candidate.sourceObject, candidate.phase, true, fallbackEdgeLineSegmentCount);
           });
         }
 
@@ -1282,7 +1329,7 @@ export function HeronWingsViewer({
           ? emissiveEmitterLights.reduce((sum, emitter) => sum + emitter.baseIntensity, 0) / emissiveEmitterLights.length
           : 0;
         console.info(
-          `[Lighting] Active emitter lights: ${emissiveEmitterLights.length} (edge rigs: ${Math.ceil(emissiveEmitterLights.length / edgeLineSegmentCount)}, guide rigs: ${edgeGuideRigs.length}, UV samples: ${edgeUvSamples.length}, segments/rig: ${edgeLineSegmentCount}, edge shadow casters: ${edgeShadowCasterCount}, base shadow casters: ${baseShadowCasterCount}, avg throw: ${avgEmitterDistance.toFixed(2)}, avg intensity: ${avgEmitterIntensity.toFixed(0)}).`
+          `[Lighting] Active emitter lights: ${emissiveEmitterLights.length} (edge rigs: ${edgeRigCount}, guide rigs: ${edgeGuideRigs.length}, UV samples: ${edgeUvSamples.length}, guide segments/rig: ${guideEdgeLineSegmentCount}, fallback segments/rig: ${fallbackEdgeLineSegmentCount}, edge shadow casters: ${edgeShadowCasterCount}, base shadow casters: ${baseShadowCasterCount}, avg throw: ${avgEmitterDistance.toFixed(2)}, avg intensity: ${avgEmitterIntensity.toFixed(0)}).`
         );
         rebuildDebugHelpers();
 
