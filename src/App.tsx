@@ -168,6 +168,10 @@ function toSentenceCase(value: string): string {
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }
 
+function withBase(path: string): string {
+  return `${import.meta.env.BASE_URL}${path.replace(/^\/+/, '')}`;
+}
+
 function joinWithAnd(items: string[]): string {
   if (items.length === 0) return '';
   if (items.length === 1) return items[0];
@@ -439,23 +443,23 @@ function MapCanvas({
   const [hoveredIcon, setHoveredIcon] = useState<string | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [canvasSize, setCanvasSize] = useState({ width: 1, height: 1 });
-  const [currentImage, setCurrentImage] = useState('/assets/Inactive.jpg');
+  const [currentImage, setCurrentImage] = useState(withBase('assets/Inactive.jpg'));
   const [nextImage, setNextImage] = useState('');
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   // Map mode IDs to background images
   const getModeBackgroundImage = (modeId: string): string => {
     const imageMap: { [key: string]: string } = {
-      '': '/assets/Inactive.jpg',
-      'M1_daily_ambient': '/assets/Ambient.jpg',
-      'M2_gameday_pre_game': '/assets/Activation.jpg',
-      'M3_gameday_in_game': '/assets/Stadium.jpg',
-      'M4_gameday_post_game': '/assets/Activation.jpg',
-      'M5_concert_mode': '/assets/Concert.jpg',
-      'M6_brand_takeover': '/assets/Brand.jpg',
-      'M7_seasonal_activation': '/assets/Seasonal.jpg'
+      '': withBase('assets/Inactive.jpg'),
+      'M1_daily_ambient': withBase('assets/Ambient.jpg'),
+      'M2_gameday_pre_game': withBase('assets/Activation.jpg'),
+      'M3_gameday_in_game': withBase('assets/Stadium.jpg'),
+      'M4_gameday_post_game': withBase('assets/Activation.jpg'),
+      'M5_concert_mode': withBase('assets/Concert.jpg'),
+      'M6_brand_takeover': withBase('assets/Brand.jpg'),
+      'M7_seasonal_activation': withBase('assets/Seasonal.jpg')
     };
-    return imageMap[modeId] || '/assets/Inactive.jpg';
+    return imageMap[modeId] || withBase('assets/Inactive.jpg');
   };
 
   // Handle background image transitions when mode changes
@@ -1162,7 +1166,7 @@ function App() {
 
   // Load concept data
   useEffect(() => {
-    fetch('/concept.json')
+    fetch(withBase('concept.json'))
       .then(res => res.json())
       .then(data => setConceptData(data))
       .catch(err => console.error('Failed to load concept data:', err));
@@ -1332,7 +1336,7 @@ function App() {
     return (
       <div className="login-screen">
         <div className="login-card">
-          <h1>IMCF Plaza Systems</h1>
+          <h1>MFP Celebration Plaza Activation Strategy</h1>
           <p>Enter the password to access the experience.</p>
           <form onSubmit={handleLogin} className="login-form">
             <label htmlFor="password" className="login-label">Password</label>
@@ -1355,7 +1359,7 @@ function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>{conceptData?.project.name || 'Plaza Systems Map'}</h1>
+        <h1>{conceptData?.project.name || 'MFP Celebration Plaza Activation Strategy'}</h1>
       </header>
       
       <nav className="app-nav">

@@ -1004,9 +1004,10 @@ export function HeronWingsViewer({
     // Load Rhino model
     const loader = new Rhino3dmLoader();
     loader.setLibraryPath('https://cdn.jsdelivr.net/npm/rhino3dm@8.4.0/');
+    const modelPath = `${import.meta.env.BASE_URL}model/Heron_Wings.3dm`;
 
     loader.load(
-      '/model/Heron_Wings.3dm',
+      modelPath,
       (object) => {
         // Rotate from Rhino Z-up to Three.js Y-up coordinate system
         object.rotation.x = -Math.PI / 2;
@@ -1550,8 +1551,8 @@ export function HeronWingsViewer({
 
         // Create omnidirectional point lights for Wash Lights
         // Moderate intensity with physically-correct falloff
-        const washEmitterDistance = Math.max(maxDim * 0.16, 20);  // 2x radius
-        const washBaseIntensity = 100;  // Increased base intensity
+        const washEmitterDistance = Math.max(maxDim * 0.32, 40);  // 4x radius
+        const washBaseIntensity = 100;  // Base intensity
 
         const addWashEmitter = (position: THREE.Vector3, sourceObject: THREE.Object3D, phase: number) => {
           // Slightly reduced decay for a bit more usable wash reach.
