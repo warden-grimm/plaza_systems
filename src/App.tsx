@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
-import { HeronWingsViewer, type RhinoLayer, type LightEffect, type LightSettings, DEFAULT_LIGHT_SETTINGS } from './components/HeronWingsViewer';
+import {
+  HeronWingsViewer,
+  type RhinoLayer,
+  type LightEffect,
+  type LightSettings,
+  DEFAULT_LIGHT_SETTINGS
+} from './components/HeronWingsViewer';
 import { HeronWingsSidebar } from './components/HeronWingsSidebar';
 import { HeronLightPanel } from './components/HeronLightPanel';
 

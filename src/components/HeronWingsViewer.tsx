@@ -89,6 +89,12 @@ const EMISSIVE_LAYER_NAMES = [EDGE_LED_LAYER_NAME, BASE_LIGHTS_LAYER_NAME, WASH_
 
 // Layer name for semi-gloss material
 const SEMI_GLOSS_LAYER_NAME = 'Grass Graphic';
+// Layer name for low-reflectivity ground (Rhino)
+const SOD_LAYER_NAME = 'Sod';
+// Layer name for chrome people figures
+const PEOPLE_LAYER_NAME = 'People';
+// Global scale for environment reflections
+const ENVIRONMENT_INTENSITY_SCALE = 0.25;
 
 const TAU = Math.PI * 2;
 
@@ -424,6 +430,17 @@ function applyPoweredDownMaterialLook(material: THREE.Material | THREE.Material[
   });
 }
 
+function scaleEnvironmentIntensity(material: THREE.Material | THREE.Material[]): void {
+  const materials = Array.isArray(material) ? material : [material];
+  materials.forEach((mat) => {
+    const envMaterial = mat as THREE.Material & { envMapIntensity?: number };
+    if (typeof envMaterial.envMapIntensity === 'number') {
+      envMaterial.envMapIntensity *= ENVIRONMENT_INTENSITY_SCALE;
+      mat.needsUpdate = true;
+    }
+  });
+}
+
 function getMeshHorizontalAxisDirection(mesh: THREE.Mesh): THREE.Vector3 {
   const direction = new THREE.Vector3();
   if (mesh.geometry instanceof THREE.BufferGeometry) {
@@ -677,6 +694,7 @@ export function HeronWingsViewer({
   const directionalLight1Ref = useRef<THREE.DirectionalLight | null>(null);
   const directionalLight2Ref = useRef<THREE.DirectionalLight | null>(null);
   const groundPlaneRef = useRef<THREE.Mesh | null>(null);
+  const environmentRef = useRef<THREE.Texture | null>(null);
 
   const clearDebugHelpers = useCallback(() => {
     const scene = sceneRef.current;
@@ -763,6 +781,7 @@ export function HeronWingsViewer({
         emitter.target.visible = visible;
       }
     });
+
   }, [layers]);
 
   // Update light settings when they change
@@ -952,6 +971,16 @@ export function HeronWingsViewer({
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
+    // Dark neutral environment for reflections
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    pmremGenerator.compileEquirectangularShader();
+    const envScene = new THREE.Scene();
+    envScene.background = new THREE.Color(0x525252);
+    const envTexture = pmremGenerator.fromScene(envScene, 0.04).texture;
+    scene.environment = envTexture;
+    environmentRef.current = envTexture;
+    pmremGenerator.dispose();
+
     // Post-processing setup
     const composer = new EffectComposer(renderer);
     const renderPass = new RenderPass(scene, camera);
@@ -1065,6 +1094,8 @@ export function HeronWingsViewer({
 
         // Find semi-gloss layer index
         const semiGlossLayerIndex = layerNameToIndex.get(SEMI_GLOSS_LAYER_NAME);
+        const sodLayerIndex = layerNameToIndex.get(SOD_LAYER_NAME);
+        const peopleLayerIndex = layerNameToIndex.get(PEOPLE_LAYER_NAME);
 
         // Find meshes on emissive layers and create shader materials
         // Linear lights (Edge LED + Base Lights) - controlled by lightEffect
@@ -1121,6 +1152,7 @@ export function HeronWingsViewer({
             const isFaceLayer = layerIndex === faceLayerIndex;
             const isLinearEmissiveLayer = layerIndex !== undefined && linearEmissiveLayerIndices.has(layerIndex) && !isFaceLayer;
             const isWashLightsLayer = layerIndex === washLightsLayerIndex && !isFaceLayer;
+            let materialScaled = false;
 
             child.castShadow = true;
             child.receiveShadow = true;
@@ -1144,6 +1176,34 @@ export function HeronWingsViewer({
                 envMapIntensity: 0.8,
               });
               child.material = semiGlossMaterial;
+              scaleEnvironmentIntensity(semiGlossMaterial);
+              materialScaled = true;
+            }
+
+            // Apply low-reflectivity material to Sod layer to avoid blown-out highlights
+            if (layerIndex === sodLayerIndex) {
+              const sodMaterial = new THREE.MeshStandardMaterial({
+                color: 0x151515,
+                roughness: 0.98,
+                metalness: 0.0,
+                envMapIntensity: 0.05,
+              });
+              child.material = sodMaterial;
+              scaleEnvironmentIntensity(sodMaterial);
+              materialScaled = true;
+            }
+
+            // Apply matte light grey material to People layer
+            if (layerIndex === peopleLayerIndex) {
+              const peopleMaterial = new THREE.MeshStandardMaterial({
+                color: 0xd9d9d9,
+                roughness: 0.9,
+                metalness: 0.0,
+                envMapIntensity: 0.1,
+              });
+              child.material = peopleMaterial;
+              scaleEnvironmentIntensity(peopleMaterial);
+              materialScaled = true;
             }
 
             // Apply emissive materials to Linear light layers (Edge LED + Base Lights)
@@ -1152,6 +1212,7 @@ export function HeronWingsViewer({
               const linearOffMaterial = cloneMaterialSet(child.material);
               neutralizeMaterialEmission(linearOffMaterial);
               applyPoweredDownMaterialLook(linearOffMaterial);
+              scaleEnvironmentIntensity(linearOffMaterial);
               originalMaterials.set(child, linearOffMaterial);
 
               // Create shader material for this mesh
@@ -1186,6 +1247,7 @@ export function HeronWingsViewer({
               const washOffMaterial = cloneMaterialSet(child.material);
               neutralizeMaterialEmission(washOffMaterial);
               applyPoweredDownMaterialLook(washOffMaterial);
+              scaleEnvironmentIntensity(washOffMaterial);
               washOriginalMaterials.set(child, washOffMaterial);
               washLightMeshes.push(child);
 
@@ -1206,6 +1268,10 @@ export function HeronWingsViewer({
               });
 
               washShaderMaterials.push(washShaderMaterial);
+            }
+
+            if (!isLinearEmissiveLayer && !isWashLightsLayer && !materialScaled) {
+              scaleEnvironmentIntensity(child.material);
             }
           }
         });
@@ -1668,6 +1734,7 @@ export function HeronWingsViewer({
           color: 0x2a2829,
           roughness: 0.78, // Slightly brighter matte finish to reveal cast light
           metalness: 0.0,
+          envMapIntensity: ENVIRONMENT_INTENSITY_SCALE,
           side: THREE.DoubleSide,
         });
         const groundPlane = new THREE.Mesh(groundGeometry, groundMaterial);
@@ -1811,6 +1878,13 @@ export function HeronWingsViewer({
       // Dispose of composer
       if (composerRef.current) {
         composerRef.current.dispose();
+      }
+      if (sceneRef.current) {
+        sceneRef.current.environment = null;
+      }
+      if (environmentRef.current) {
+        environmentRef.current.dispose();
+        environmentRef.current = null;
       }
 
       // Dispose of geometries and materials
